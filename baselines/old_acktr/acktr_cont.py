@@ -25,8 +25,8 @@ def rollout(env, policy, max_pathlength, last_ob_array, last_jpos_array, animate
     #env.set_robot_joint_positions(last_jpos_array[start_inds])
     #ob = last_ob_array[start_inds]
 
-    env.set_robot_joint_positions(last_jpos_array[-1]) # last position
-    ob = last_ob_array[-1]
+    #env.set_robot_joint_positions(last_jpos_array[-1]) # last position, comment out for now for move_lift_grip, otherwise dont for grasp and lift
+    ob = np.concatenate((last_ob_array[-1], env.box_end),axis=0)
 
     prev_ob = np.float32(np.zeros(ob.shape))
     if obfilter: ob = obfilter(ob)
@@ -60,7 +60,7 @@ def rollout(env, policy, max_pathlength, last_ob_array, last_jpos_array, animate
             "action_dist": np.array(ac_dists), "logp" : np.array(logps)}
 
 def old_acktr_learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps, save_per_iter, ckpt_dir, traj_limitation, last_ob, last_jpos, 
-    animate=False, callback=None, desired_kl=0.002):
+    animate=False, callback=None, desired_kl=0.002, cont_training=False,load_path=None, obfilter_load=None, pi_name="pi_aktr" ):
 
     obfilter = ZFilter(env.observation_space.shape)
 
@@ -74,13 +74,26 @@ def old_acktr_learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timest
                                 weight_decay_dict=policy.wd_dict, max_grad_norm=None)
     pi_var_list = []
     for var in tf.trainable_variables():
-        if "pi_aktr" in var.name:
+        if pi_name in var.name:
             pi_var_list.append(var)
 
     update_op, q_runner = optim.minimize(loss, loss_sampled, var_list=pi_var_list)
     do_update = U.function(inputs, update_op)
     U.initialize()
 
+    # Loading operation
+    if cont_training:
+        sess = tf.compat.v1.get_default_session()
+        saver_cont = tf.compat.v1.train.Saver(max_to_keep=5)
+        ckpt_cont = tf.compat.v1.train.get_checkpoint_state(load_path)
+        saver_cont.restore(sess,ckpt_cont.model_checkpoint_path)
+
+        stat_cont = np.load(obfilter_load)
+        obfilter.rs._n = stat_cont["n"]
+        obfilter.rs._M = stat_cont["M"]
+        obfilter.rs._S = stat_cont["S"]
+    
+    
     # start queue runners
     enqueue_threads = []
     coord = tf.train.Coordinator()

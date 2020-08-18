@@ -7,9 +7,9 @@ from baselines.old_acktr import kfac
 from baselines.old_acktr.utils import dense
 
 class NeuralNetValueFunction(object):
-    def __init__(self, ob_dim, ac_dim): #pylint: disable=W0613
+    def __init__(self, ob_dim, ac_dim, name="vf_aktr"): #pylint: disable=W0613
 
-        with tf.compat.v1.variable_scope("vf_aktr"):
+        with tf.compat.v1.variable_scope(name):
 
             X = tf.compat.v1.placeholder(tf.float32, shape=[None, ob_dim*2+ac_dim*2+2]) # batch of observations
             vtarg_n = tf.compat.v1.placeholder(tf.float32, shape=[None], name='vtarg')
@@ -19,7 +19,8 @@ class NeuralNetValueFunction(object):
             vpred_n = dense(h2, 1, "hfinal", weight_init=U.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict)[:,0]
             sample_vpred_n = vpred_n + tf.random_normal(tf.shape(vpred_n))
             #wd_loss = tf.get_collection("vf_losses", None)
-            wd_loss = tf.get_collection("vf_aktr_losses", None) # switch out orig sinc name is changed
+            los_name = name+"_losses"
+            wd_loss = tf.get_collection(los_name, None) # switch out orig sinc name is changed
             loss = tf.reduce_mean(tf.square(vpred_n - vtarg_n)) + tf.add_n(wd_loss)
             loss_sampled = tf.reduce_mean(tf.square(vpred_n - tf.stop_gradient(sample_vpred_n)))
             self._predict = U.function([X], vpred_n)
@@ -29,7 +30,7 @@ class NeuralNetValueFunction(object):
                                         weight_decay_dict=wd_dict, max_grad_norm=None)
             vf_var_list = []
             for var in tf.trainable_variables():
-                if "vf_aktr" in var.name:
+                if name in var.name:
                     vf_var_list.append(var)
 
 

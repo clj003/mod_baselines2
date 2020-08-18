@@ -4,10 +4,10 @@ from baselines.old_acktr.utils import dense, kl_div
 import baselines.common.tf_util as U
 
 class GaussianMlpPolicy(object):
-    def __init__(self, ob_dim, ac_dim):
+    def __init__(self, ob_dim, ac_dim, name="pi_aktr"):
 
         # Add in scopes for saving????
-        with tf.compat.v1.variable_scope("pi_aktr"):
+        with tf.compat.v1.variable_scope(name):
             #self.scope = tf.compat.v1.get_variable_scope()."pi_aktr"
 
             #print("Gaussian mlp scope: " + tf.compat.v1.get_variable_scope().name)
