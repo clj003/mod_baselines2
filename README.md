@@ -1,3 +1,5 @@
+# This repository was modified from the openai baselines repository as indicated below. Instructions to use are similar
+
 **Status:** Maintenance (expect bug fixes and minor updates)
 
 <img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/openai/baselines.svg?branch=master)](https://travis-ci.org/openai/baselines)
