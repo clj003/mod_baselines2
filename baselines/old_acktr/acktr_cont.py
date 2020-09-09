@@ -25,8 +25,11 @@ def rollout(env, policy, max_pathlength, last_ob_array, last_jpos_array, animate
     #env.set_robot_joint_positions(last_jpos_array[start_inds])
     #ob = last_ob_array[start_inds]
 
-    #env.set_robot_joint_positions(last_jpos_array[-1]) # last position, comment out for now for move_lift_grip, otherwise dont for grasp and lift
-    ob = np.concatenate((last_ob_array[-1], env.box_end),axis=0)
+    #env.set_robot_joint_positions(last_jpos_array[-1]) # last position, comment out for now for move_lift_grip, otherwise dont for grasp and lift, also commented out to show acktr works alone
+    
+    #ob = np.concatenate((last_ob_array[-1], env.box_end),axis=0) # comment out to show acktr works alone without the gail traj
+
+    
 
     prev_ob = np.float32(np.zeros(ob.shape))
     if obfilter: ob = obfilter(ob)
@@ -59,10 +62,13 @@ def rollout(env, policy, max_pathlength, last_ob_array, last_jpos_array, animate
             "reward" : np.array(rewards), "action" : np.array(acs),
             "action_dist": np.array(ac_dists), "logp" : np.array(logps)}
 
-def old_acktr_learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps, save_per_iter, ckpt_dir, traj_limitation, last_ob, last_jpos, 
+def old_acktr_learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps, save_per_iter, ckpt_dir, max_dir, traj_limitation, last_ob, last_jpos, 
     animate=False, callback=None, desired_kl=0.002, cont_training=False,load_path=None, obfilter_load=None, pi_name="pi_aktr" ):
 
     obfilter = ZFilter(env.observation_space.shape)
+
+    # Set a number for episode mean max
+    max_mean = float('-inf')
 
     #max_pathlength = env.spec.timestep_limit
     max_pathlength = traj_limitation
@@ -173,7 +179,29 @@ def old_acktr_learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timest
 
 
 
-        
+        now_mean = np.mean([path["reward"].sum() for path in paths])
+
+        if ( now_mean > max_mean ):
+            max_mean = now_mean
+            logger.log("max_mean updated: ", max_mean)
+            
+            logger.log("Saving max  weights")
+
+            max_task_name = "acktr_weights"+ "_max" + "_" + str(timesteps_so_far)
+            max_fname = os.path.join( max_dir , max_task_name)
+            max_saver = tf.compat.v1.train.Saver(max_to_keep=5)
+            max_saver.save(tf.compat.v1.get_default_session(), max_fname)
+
+            max_ob_filter_file_name = "filter_stats"+"_max" + "_" + str(timesteps_so_far)
+            max_ob_filter_fname = os.path.join(max_dir , max_ob_filter_file_name)
+
+            np.savez(
+                    max_ob_filter_fname,
+                    n=obfilter.rs._n,
+                    M=obfilter.rs._M,
+                    S=obfilter.rs._S,
+                    )
+
         
         min_stepsize = np.float32(1e-8)
         max_stepsize = np.float32(1e0)
